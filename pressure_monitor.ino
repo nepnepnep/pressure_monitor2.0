@@ -2,10 +2,8 @@
 #include <LiquidMenu.h>
 #include "Button.h"
 
-// Выводы, подключенные к дисплею:
+// Настройка дисплея
 
-//LCD R/W вывод на корпус
-//Средний вывод потенциометра 10кОм к VO
 LiquidCrystal_I2C lcd(0x27,20,4);
 
 
@@ -23,6 +21,7 @@ int pMin = 4; //Минимальное давление в балоне.
 const byte ledPin = LED_BUILTIN;
 bool ledState = LOW;
 bool ligth_stat = true;
+bool enter_ = false;//Переменная отвечающая за вход в меню.
 char* ledState_text;
 
 
@@ -47,8 +46,47 @@ LiquidLine pMin_line2(0, 1, "MPa :",pMin);
 LiquidScreen pmin_screen(pMin_line1,pMin_line2);
 
 LiquidMenu menu(lcd);
+//Фокус меню.
+uint8_t rFocus[8] = {
+  0b00000,
+  0b00001,
+  0b00111,
+  0b01111,
+  0b00111,
+  0b00001,
+  0b00000,
+  0b00000
+};
 
-
+void switch_enter(){
+  if(enter_){
+    enter_=false;
+  }else{
+    enter_=true;
+  }
+}
+//Выбор меню вниз
+void choice_menu_down(){
+  if (enter_){
+    Serial.println(F("Call function"));
+    menu.call_function(2);
+    //backlight_set();
+  }else{
+    Serial.println(F("Next screen"));
+    menu.previous_screen();
+  }
+}
+//Отвечает за навишацию.
+void choice_menu_up(){
+  if (enter_){
+    Serial.println(F("Call function"));
+    menu.call_function(1);
+    //backlight_set();
+  }else{
+    Serial.println(F("Next screen"));
+    menu.next_screen();
+  }
+}
 //Метод включает \ выключает подсветку.
 void backlight_set() 
 {
@@ -73,25 +111,34 @@ void p_plus()
     Serial.println(F("Pressure set max"));
     }
 }
+void p_minus() 
+{
+  if (pMax>0) {
+    pMax--;
+    Serial.println(F("Set pressure minus"));
+    }
+  else {
+    pMax=0;
+    Serial.println(F("Pressure set min"));
+    }
+}
 void setup() 
 {
   Serial.begin(19200);
-
-  /*pinMode(analogPin, INPUT);
-  pinMode(ledPin, OUTPUT);
-  pinMode(pwmPin, OUTPUT);*/
-
+  
+ 
   lcd.init(); 
   lcd.setBacklight(ligth_stat);
   // Прикрепить функции к объектам LiquidLine.
   backLight.attach_function(1, backlight_set);
-  pMax_line1.attach_function(2,p_plus);
+  backLight.attach_function(2, backlight_set);
+  pMax_line1.attach_function(1,p_plus); 
+  pMax_line1.attach_function(2,p_minus);
   //backLight.attach_function(2, enter);
-
+  menu.set_focusSymbol(Position::RIGHT, rFocus);
   menu.add_screen(pmin_screen);
   menu.add_screen(pmax_screen);
   menu.add_screen(backLight_screen);
-  delay(2000);
 }
 
 void loop() {
@@ -104,21 +151,18 @@ void loop() {
     Serial.println(F("UP button clicked"));
     // Вызвать функцию, идентифицированную номером 1
     // для выделенной строки.
-    menu.call_function(2);
-    menu.next_screen();
+    choice_menu_up();
   }
   if (down.check() == LOW) 
   {
     Serial.println(F("DOWN button clicked"));
-    menu.previous_screen();
+    choice_menu_down();
   }
   if (enter.check() == LOW) 
   {
     Serial.println(F("ENTER button clicked"));
-    // Переключить фокус на следующую строку.
     menu.switch_focus();
-    menu.call_function(1);
-   
+    switch_enter();
     
   }
 
