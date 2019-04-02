@@ -13,26 +13,30 @@ Button down(3, pullup);
 Button enter(4, pullup);
 
 const byte pwmPin = 6;
-int pMax = 8; //Максимальное давление в балоне.
-int pMin = 4; //Минимальное давление в балоне.
+int pMax 		= 8; //Максимальное давление в балоне.
+int pMin 		= 4; //Минимальное давление в балоне.
+int delta_time		= 1;//Промежуток времени по которому будет считаться обратная связь
+int delta_pressure	= 1;//Изменение давления которое считается за положительную работу двигателя.
 
 // Переменные для управления выводом и отображения состояния с помощью текста.
 // char* используется для добавления изменяющегося текста в объект the LiquidLine.
 const byte ledPin = LED_BUILTIN;
-bool ledState = LOW;
+bool ledState 	= LOW;
 bool ligth_stat = true;
-bool enter_ = false;//Переменная отвечающая за вход в меню.
+bool feedback 	= false;//отвечает за вкл\выкл обратной связи.
+bool enter_ 	= false;//Переменная отвечающая за вход в меню.
 char* ledState_text;
+
 
 
 const byte analogPin = A1;
 unsigned short analogValue = 0;
 
 //Привественный экран
-LiquidLine welcome_line1(1, 0, "Pressure monitor");
+LiquidLine welcome_line1(0, 0, "Pressure monitor");
 LiquidLine welcome_line2(0, 1, "Starting...");
 LiquidScreen welcome_screen(welcome_line1, welcome_line2);
-//Элемент менб включающий или выключающий подсветку дисплея.
+//Элемент меню включающий или выключающий подсветку дисплея.
 LiquidLine backLight(0, 0, "Podsvetka");
 LiquidLine backLight_status(0, 1, "Status :",ligth_stat );
 LiquidScreen backLight_screen(backLight, backLight_status);
@@ -44,8 +48,21 @@ LiquidScreen pmax_screen(pMax_line1,pMax_line2);
 LiquidLine pMin_line1(0, 0, "Min davlenie");
 LiquidLine pMin_line2(0, 1, "MPa :",pMin);
 LiquidScreen pmin_screen(pMin_line1,pMin_line2);
+//Элемент меню описывающий вкл\выкл обратной связи по давлению.
+LiquidLine feedback_line1(0,0,"Obratnaya svyaz'");
+LiquidLine feedback_line2(0,1,"Status:",get_status_feedback());
+liquidScreen feedback_status (feedback_line1,feedback_line2);
+// Элемент появляющийся, если обратная связь включена. Изменения установленной дельте времени.
+LiquidLine feedback_delta_time1(0,0,"Po vremeni");
+LiquidLine feedback_delta_time2(0,1,"Delta T: ",delta_time);
+LiquidScreen feedback_dt(feedback_delta_time1,feedback_delta_time2);
+//Элемент появляется если обратная связь включена. Дельта давления, которая дает понять о состоянии двигателя: ВКЛ\ВЫКЛ.
+LiquidLine feedback_delta_pressure1(0,0,"Po davleniyu");
+LiquidLine feedback_delta_pressure2(0,1,"Delta P :",delta_pressure);
+LiquidSreen feedback_dp(feedback_delta_pressure1,feedback_delta_pressure2);
 
 LiquidMenu menu(lcd);
+
 //Фокус меню.
 uint8_t rFocus[8] = {
   0b00000,
@@ -57,7 +74,15 @@ uint8_t rFocus[8] = {
   0b00000,
   0b00000
 };
-
+//метод возвращающий текстовое состояние функции обратной связи.
+void get_status_feedback(){
+	if(feedback){
+		return "ON";
+	}else{
+		return "OFF";
+	}
+}
+//Передает состояние о вхождении в режим настройки. Калвиши вверх вниз переключаются в настройку.
 void switch_enter(){
   if(enter_){
     enter_=false;
@@ -99,7 +124,19 @@ void backlight_set()
     ligth_stat = true;
     }
 }
-//Метод придавляет давление
+//Метод прибавляет интежер, от предела объясленного.
+viod int_plus(int who, int limit){
+	if (who<limit) {
+    		who++;
+    		Serial.println(F("Set int ++"));
+    }
+  	else {
+    		who=limit;
+    		Serial.println(F("Set int max"));
+    }
+
+}
+//Метод при,авляет давление
 void p_plus() 
 {
   if (pMax<120) {
@@ -126,7 +163,6 @@ void setup()
 {
   Serial.begin(19200);
   
- 
   lcd.init(); 
   lcd.setBacklight(ligth_stat);
   // Прикрепить функции к объектам LiquidLine.
@@ -136,9 +172,13 @@ void setup()
   pMax_line1.attach_function(2,p_minus);
   //backLight.attach_function(2, enter);
   menu.set_focusSymbol(Position::RIGHT, rFocus);
+  //Настройка списка меню.
   menu.add_screen(pmin_screen);
   menu.add_screen(pmax_screen);
   menu.add_screen(backLight_screen);
+  menu.add_screen(feedback_status);
+  menu.add_screen(feedback_dt);
+  menu.add_screen(feedback_dp);
 }
 
 void loop() {
